@@ -1,0 +1,57 @@
+###
+# Upload the data to an EBS volume and snapshot it.
+
+require 'catpaws'
+
+#generic settings
+set :aws_access_key,  ENV['AMAZON_ACCESS_KEY']
+set :aws_secret_access_key , ENV['AMAZON_SECRET_ACCESS_KEY']
+set :ec2_url, ENV['EC2_URL']
+set :ssh_options, { :user => "ubuntu", :keys=>[ENV['EC2_KEYFILE']]}
+set :key, ENV['EC2_KEY']
+set :key_file, ENV['EC2_KEYFILE']
+set :ami, 'ami-52794c26'  #EC2 eu-west-1 32bit Lucid
+set :instance_type, 'm1.small'
+set :working_dir, '/mnt/work'
+
+set :nhosts, 1
+set :group_name, 'REST_ChIPseq_109-109_data'
+
+set :snap_id, `cat SNAPID`.chomp #ec2 eu-west-1 
+set :vol_id, `cat VOLUMEID`.chomp #empty until you've created a new volume
+set :ebs_size, 20  
+set :availability_zone, 'eu-west-1a'  #wherever the ami is
+set :dev, '/dev/sdf'
+set :mount_point, '/mnt/data'
+
+
+#start an instance
+#cap EC2:start
+
+#make a new EBS volume and mount it
+#cap EBS:create
+#cap EBS:attach
+#cap EBS:format_xfs
+#cap EBS:mount_xfs
+
+desc "Upload data files"
+task :upload_data, :roles => group_name do
+  files = [
+           "CMN036.export.txt",
+           "CMN037.export.txt",
+           "README"
+  ]
+
+  files.each do |f|
+    upload(f, "#{mount_point}/#{f}", :via => :scp) 
+  end
+end
+before 'upload_data', 'EC2:start'
+
+
+# cap EBS:snapshot
+# cap EBS:unmount
+# cap EBS:detach
+# cap EBS:delete 
+# cap EC2:stop
+

@@ -1,0 +1,8 @@
+*~
+*#
+*.swp
+*results*
+Capfile.local
+*.zip
+*export.txt
+nohup.*
