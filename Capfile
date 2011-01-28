@@ -50,6 +50,26 @@ task :install_bowtie, :roles => group_name do
 end
 before 'install_bowtie', 'EC2:start'
 
+   
+desc "install R on all running instances in group group_name"
+#default lucid build is really old :(
+task :install_r, :roles  => group_name do
+  user = variables[:ssh_options][:user]
+  sudo 'apt-get update'
+  sudo 'apt-get -y install build-essential libxml2 libxml2-dev libcurl3 libcurl4-openssl-dev xorg-dev' 
+
+  run "cd #{working_dir} && curl http://cran.ma.imperial.ac.uk/src/base/R-2/R-2.12.1.tar.gz > R-2.12.1.tar.gz"
+  run "cd #{working_dir} && tar -xvzf R-2.12.1.tar.gz"
+  run "cd #{working_dir}/R-2.12.1/ && ./configure"
+  run "cd #{working_dir}/R-2.12.1/ && make"
+  sudo "cd #{working_dir}/R-2.12.1/ && make installl"
+
+  upload('scripts/R_setup.R',  "#{working_dir}/R_setup.R")
+  run "cd #{working_dir} && chmod +x R_setup.R"
+  sudo "Rscript #{working_dir}/R_setup.R"
+end
+before "install_r", "EC2:start"
+
 
 #get the current mouse genome (which I already have on S3).
 task :fetch_genome, :roles => group_name do
@@ -250,86 +270,9 @@ before "bam_tidy", 'EC2:start'
 
 
 
-#### SICER ??
-
-SICER_link ="http://home.gwu.edu/~wpeng/SICER_v1.03.tgz"
-desc "install SICER"
-task :install_SICER, :roles => group_name do
-   run "cd #{working_dir} && curl #{SICER_link} > SICER_v1.03.tgz"
-   run "cd #{working_dir} && tar -xzf SICER_v1.03.tgz"
-
-end
-before 'install_SICER', 'EC2:start'
-
-####Need bedtools to covert bam to bed files, but link doesnt seem to work - corrupt file?
-#instead sftp file straight to server from github download link
-#install g++ compiler (sudo apt-get install g++)
-#tar -zxvf arq5x-bedtools-9242fe1.tar.gz
-#cd into new directory
-#make clean
-#make all
-
-BEDTools_link = "https://github.com/arq5x/bedtools/tarball/master/arq5x-bedtools-9242fe1.tar.gz"
-desc "install BEDTools"
-task :install_BEDTools, :roles => group_name do
-   run "cd #{working_dir} && curl #{BEDTools_link} > arq5x-bedtools-9242fe1.tar.gz"
-   run "cd #{working_dir} && tar -zxvf arq5x-bedtools-9242fe1.tar.gz"
-
-end
-before 'install_BEDTools', 'EC2:start'
-
-desc "bamToBed"
-task :bamToBed, :roles => group_name do
-   files = capture("ls #{mount_point}/*sorted_nodups.bam").split("\n")
-   files = files.map {|f| f.chomp}
-   files.each{|infile|
-     f_out = infile.sub('.bam', '.bed')
-     run "#{working_dir}/arq5x-bedtools-9242fe1/bin/bamToBed -i #{infile} > #{f_out}"
-   }
-
-end
-before 'bamToBed', 'EC2:start'
-
-# nohup /mnt/work/arq5x-bedtools-9242fe1/bin/bamToBed -i MLA_NS_H3K4me3_CMN054_s_2_export_sorted_nodups.bam > MLA_NS_H3K4me3_CMN054_s_2_export_sorted_nodups.bed &
 
 
-#to change parameters vim the shell script
-#gap size at 1 for H3K4me3 and 3 for H3K27me
-#fragment size at 300bp
-#genome at mm9
-#directories point already to /mnt/work and /mnt/data hopefully????
-desc "run SICER"
-task :run_SICER, :roles => group_name do
-   treatment = "MLA_NS_H3K4me3_CMN054_s_2_export_sorted_nodups.bed"
-   control = "MLA_NS_input_CMN055_s_3_export_sorted_nodups.bed"
-   window_size = 200
-   gap_size = 400
-   P_value = 1E-3
-
-   run "#{working_dir}/SICER_v1.03/SICER/SICER_mod.sh #{treatment} #{control} #{window_size} #{gap_size} #{P_value}"
-   
-end
-before 'run_SICER', 'EC2:start'
-    
-
- #/mnt/work/SICER.sh MLA_NS_H3K4me3_CMN054_s_2_export_sorted_nodups.bed MLA_NS_input_CMN055_s_3_export_sorted_nodups.bed 200 600 1E-3
-#convert_summary_to_bed.py -i input_file output_file.bed
-   
-desc "install R on all running instances in group group_name"
-task :install_r, :roles  => group_name do
-  user = variables[:ssh_options][:user]
-  sudo 'apt-get update'
-  sudo 'apt-get -y install r-base'
-  sudo 'apt-get -y install build-essential libxml2 libxml2-dev libcurl3 libcurl4-openssl-dev'
-  upload('scripts/R_setup.R',  "#{working_dir}/R_setup.R")
-  run "cd #{working_dir} && chmod +x R_setup.R"
-  sudo "Rscript #{working_dir}/R_setup.R"
-end
-before "install_r", "EC2:start"
-
-#> #{mount_point}/#{f_out}
-
-### Macs ?
+######## Peak Finding
 
 macs_url ="http://liulab.dfci.harvard.edu/MACS/src/MACS-1.4.0beta.tar.gz"
 macs_version = "MACS-1.4.0beta"
@@ -354,17 +297,10 @@ end
 before 'install_peaksplitter', 'EC2:start'
 
 
-#MLA_NS_H3K27me3_CMN056_s_4_export_sorted_nodups.bam
-#MLA_NS_H3K4me3_CMN054_s_2_export_sorted_nodups.bam
-#MLA_NS_input_CMN055_s_3_export_sorted_nodups.bam
-#Neuron_H3K27me3_CMN059_s_7_export_sorted_nodups.bam
-#Neuron_H3K4me3_CMN058_s_6_export_sorted_nodups.bam
-#Neuron_input_CMN057_s_5_export_sorted_nodups.bam
-#you'll need to have done "install_r" and install_peak_splitter to do this
 task :run_macs, :roles => group_name do
 
-  treatment = "#{mount_point}/Neuron_H3K4me3_CMN058_s_6_export_sorted_nodups.bam"
-  control = "#{mount_point}/Neuron_input_CMN057_s_5_export_sorted_nodups.bam"
+  treatment = "#{mount_point}/CMN036.export_sorted_nodups.bam"
+  control = "#{mount_point}/CMN037.export_sorted_nodups.bam"
   genome = 'mm'
   bws = [300]
   pvalues = [0.00001]
@@ -380,14 +316,14 @@ task :run_macs, :roles => group_name do
       macs_cmd =  "macs --treatment #{treatment} --control #{control} --name #{group_name} --format BAM --gsize #{genome} --bw #{bw} --pvalue #{pvalue}"
       run "cd #{dir} && #{macs_cmd}"
       
-      #dir = "#{mount_point}/macs_#{bw}_#{pvalue}_subpeaks"
-      #run "rm -Rf #{dir}"
-      #run "mkdir #{dir}"
+      dir = "#{mount_point}/macs_#{bw}_#{pvalue}_subpeaks"
+      run "rm -Rf #{dir}"
+      run "mkdir #{dir}"
 
       # With SubPeak finding
       # this will take a lot longer as you have to save the wig file
-      #macs_cmd =  "macs --treatment #{treatment} --control #{control} --name #{group_name} --format BAM --gsize #{genome} --call-subpeaks  --wig --bw #{bw} --pvalue #{pvalue}"
-      #run "cd #{dir} && #{macs_cmd}"
+      macs_cmd =  "macs --treatment #{treatment} --control #{control} --name #{group_name} --format BAM --gsize #{genome} --call-subpeaks  --wig --bw #{bw} --pvalue #{pvalue}"
+      run "cd #{dir} && #{macs_cmd}"
 
     }
   }
@@ -395,12 +331,59 @@ task :run_macs, :roles => group_name do
 end
 before 'run_macs', 'EC2:start'
 
-#pack up the runs and downloads them to the server (without the wig files)
+
+desc "convert Macs peaks to IRanges"
+task :macs_to_iranges, :roles => group_name do
+  run "cd #{working_dir} && rm -f peaksBed2IRanges.R"
+  upload('scripts/peaksBed2IRanges.R' , "#{working_dir}/peaksBed2IRanges.R")
+  run "cd #{working_dir} && chmod +x peaksBed2IRanges.R"
+
+  macs_dirs = capture "ls #{mount_point}"
+  macs_dirs = macs_dirs.split("\n").select { |d| d =~ /.*macs.*/ }
+  macs_dirs = macs_dirs.split("\n")
+  maics_dirs.each{|d|
+    unless d.match('tgz')
+      xlsfiles = capture "ls #{mount_point}/#{d}/*peaks.xls"
+      xlsfiles = xlsfiles.split("\n")
+      xlsfiles.each{|x|
+         run "cd #{mount_point}/#{d} && Rscript #{working_dir}/peaksBed2IRanges.R #{x}"
+      }
+    end
+  }
+end
+before 'macs_to_iranges', 'EC2:start'
+
+
+desc "annotate IRanges"
+task :annotate_macs, :roles => group_name do
+  run "cd #{working_dir} && rm -f mm9RDtoGenes.R"
+  upload('scripts/mm9RDtoGenes.R', "#{working_dir}/mm9RDtoGenes.R")
+  run "cd #{working_dir} && chmod +x mm9RDtoGenes.R"
+  macs_dirs = capture "ls #{mount_point}"
+  macs_dirs = macs_dirs.split("\n").select { |d| d =~ /.*macs.*/ }
+  macs_dirs.each{|d|
+    unless d.match('tgz')
+      rdfiles = capture "ls #{mount_point}/#{d}/*RangedData.RData"
+      rdfiles = rdfiles.split("\n")
+      rdfiles.each{|rd|
+        unless rd.match(/negative/)
+          run"cd #{working_dir} && Rscript #{working_dir}/mm9RDtoGenes.R #{rd}"
+        end
+      }
+    end
+  }
+         
+end
+before 'annotate_macs', 'EC2:start'
+
+
 task :pack_macs, :roles => group_name do
   macs_dirs = capture "ls #{mount_point}"
   macs_dirs = macs_dirs.split("\n").select {|f| f.match(/.*macs.*/)}
   macs_dirs.each{|d|
-    run "cd #{mount_point} &&  tar --exclude *_wiggle* -cvzf #{d}.tgz #{d}"
+    unless d.match('tgz')
+      run "cd #{mount_point} &&  tar --exclude *_wiggle* -cvzf #{d}.tgz #{d}"
+    end
   }
   
 end

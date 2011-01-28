@@ -151,12 +151,11 @@ if (length(smaller)>0) nearest.nearest[smaller,] <- nearest.mirna[smaller,]
 
 #reorder
 
-colnms <- qw(space, start, end, width, names, peak, strand, feature, start_position, end_position, insideFeature,distancetoFeature, shortestDistance,fromOverlappingOrNearest,overlapping.exon, type, mgi_symbol, description , Length, nTags_ChIP, nTags_Cnt, neg10log10pVal, FoldEnrichment, FDR)
-
-nearest.tss <- nearest.tss[,colnms]
-nearest.tes <- nearest.tes[,colnms]
-nearest.mirna <- nearest.mirna[,colnms]
-nearest.nearest <- nearest.nearest[,colnms]
+#colnms <- qw(space, start, end, width, names, peak, strand, feature, start_position, end_position, insideFeature,distancetoFeature, shortestDistance,fromOverlappingOrNearest,overlapping.exon, type, mgi_symbol, description , Length, Summit, nTags,neg10log10pVal, FoldEnrichment, FDR )
+#nearest.tss <- nearest.tss[,colnms]
+#nearest.tes <- nearest.tes[,colnms]
+#nearest.mirna <- nearest.mirna[,colnms]
+#nearest.nearest <- nearest.nearest[,colnms]
 
 
 #save the results as csv and rd?

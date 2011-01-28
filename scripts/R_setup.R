@@ -14,5 +14,5 @@ biocLite("biomaRt")
 	 	
 biocLite("ChIPpeakAnno")
 
-biocLite("BSgenome.Mmusculus.UCSC.mm9")
+#biocLite("BSgenome.Mmusculus.UCSC.mm9")
 
